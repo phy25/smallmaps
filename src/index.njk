@@ -26,7 +26,7 @@
         display: inline-flex; align-items: center; justify-content: center;
       }
       #controls button:hover { background: #f0f0f0; }
-      #controls button.active { background: #e8f0fe; color: #1a73e8; }
+      .dropdown-divider { height: 1px; background: #eee; margin: 4px 0; }
       #opacity-slider { min-width: 80px; max-width: 160px; cursor: pointer; }
 
       /* ── layers dropdown ── */
@@ -61,12 +61,9 @@
       <button id="zoom-out" title="缩小">−</button>
       <div class="divider"></div>
 
-      <button id="satellite-btn" title="卫星图">卫星</button>
-      <div class="divider"></div>
-
       <div id="layers-btn-wrap">
-        <button id="layers-btn">图层 ▾</button>
-        <div id="layers-dropdown"></div>
+        <button id="layers-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="layers-dropdown">图层 ▾</button>
+        <div id="layers-dropdown" role="menu" aria-label="图层"></div>
       </div>
 
       <div class="divider"></div>
@@ -75,8 +72,8 @@
     </div>
 
     <template id="layer-item-tpl">
-      <label class="layer-item">
-        <input type="checkbox" checked />
+      <label class="layer-item" role="menuitemcheckbox" aria-checked="true">
+        <input type="checkbox" checked aria-hidden="true" />
         <div class="layer-item-text">
           <div class="layer-item-label"></div>
           <div class="layer-item-description"></div>
@@ -109,7 +106,7 @@
       // ── Map setup ────────────────────────────────────────────────────
       const map = L.map('map', {
         center: [23.354, 116.68],
-        zoom: 13,
+        zoom: 14,
         zoomAnimationThreshold: 1,
         zoomControl: false
       })
@@ -144,10 +141,24 @@
       }
       map.on('moveend zoomend', updateImproveLink)
 
-      const satelliteBtn = document.getElementById('satellite-btn')
-      satelliteBtn.addEventListener('click', () => {
-        const isActive = satelliteBtn.classList.toggle('active')
-        if (isActive) {
+      // ── Load layers + build dropdown ─────────────────────────────────
+      const layers = []
+      const dropdown = document.getElementById('layers-dropdown')
+      const tpl = document.getElementById('layer-item-tpl')
+
+      // Satellite entry at bottom of dropdown
+      const satFrag = tpl.content.cloneNode(true)
+      satFrag.querySelector('.layer-item-label').textContent = '卫星图'
+      satFrag.querySelector('.layer-item-description').remove()
+      satFrag.querySelector('.layer-status').remove()
+      satFrag.querySelector('.layer-item-links').remove()
+      const satCheckbox = satFrag.querySelector('input[type=checkbox]')
+      const satItem = satFrag.querySelector('.layer-item')
+      satCheckbox.checked = false
+      satItem.setAttribute('aria-checked', 'false')
+      satCheckbox.addEventListener('change', (e) => {
+        satItem.setAttribute('aria-checked', String(e.target.checked))
+        if (e.target.checked) {
           osmLayer.remove()
           satelliteLayer.addTo(map)
           satelliteLayer.bringToBack()
@@ -157,11 +168,7 @@
           osmLayer.bringToBack()
         }
       })
-
-      // ── Load layers + build dropdown ─────────────────────────────────
-      const layers = []
-      const dropdown = document.getElementById('layers-dropdown')
-      const tpl = document.getElementById('layer-item-tpl')
+      dropdown.appendChild(satFrag)
 
       for (const ann of ANNOTATIONS) {
         const warpedLayer = new WarpedMapLayer().addTo(map)
@@ -186,7 +193,10 @@
 
         if (!ann.more_link && !ann.edit_link) frag.querySelector('.layer-item-links').remove()
 
-        frag.querySelector('input[type=checkbox]').addEventListener('change', (e) => {
+        const cb = frag.querySelector('input[type=checkbox]')
+        const item = frag.querySelector('.layer-item')
+        cb.addEventListener('change', (e) => {
+          item.setAttribute('aria-checked', String(e.target.checked))
           if (e.target.checked) warpedLayer.addTo(map)
           else warpedLayer.remove()
         })
@@ -202,11 +212,21 @@
 
       // ── Toggle dropdown ──────────────────────────────────────────────
       const layersBtn = document.getElementById('layers-btn')
+      function setDropdownOpen(open) {
+        dropdown.classList.toggle('open', open)
+        layersBtn.setAttribute('aria-expanded', String(open))
+      }
+
       layersBtn.addEventListener('click', (e) => {
         e.stopPropagation()
-        dropdown.classList.toggle('open')
+        setDropdownOpen(!dropdown.classList.contains('open'))
       })
-      document.addEventListener('click', () => dropdown.classList.remove('open'))
+      document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target)) setDropdownOpen(false)
+      })
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setDropdownOpen(false)
+      })
 
       // ── Opacity (applies to all visible layers) ──────────────────────
       document.getElementById('opacity-slider').addEventListener('input', (e) => {
