@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>汕头老地图</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; font-family: sans-serif; }
+      #map { width: 100%; height: 100%; }
+
+      /* ── bottom bar ── */
+      #controls {
+        position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+        z-index: 1000; display: flex; align-items: center; gap: 10px;
+        max-width: calc(100vw - 40px);
+        background: white; padding: 8px 16px; border-radius: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      #controls > label { font-size: 12px; color: #555; white-space: nowrap; }
+      #controls .divider { width: 1px; height: 18px; background: #ddd; margin: 0 -4px; }
+      #controls button {
+        min-width: 24px; height: 24px; border: none; background: none;
+        font-size: 12px; cursor: pointer; color: #333;
+        border-radius: 4px; padding: 0 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      #controls button:hover { background: #f0f0f0; }
+      #opacity-slider { min-width: 80px; max-width: 160px; cursor: pointer; }
+
+      /* ── layers dropdown ── */
+      #layers-btn { font-size: 12px; padding: 4px 14px; width: auto; height: auto; line-height: normal; white-space: nowrap; }
+      #layers-btn-wrap { position: relative; }
+      #layers-dropdown {
+        display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+        transform: translateX(-50%); background: white; border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2); padding: 8px 0;
+        min-width: 220px; max-width: calc(100vw - 40px);
+      }
+      #layers-dropdown.open { display: block; }
+      .layer-item {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 8px 16px; cursor: pointer; color: #333;
+      }
+      .layer-item:hover { background: #f5f5f5; }
+      .layer-item input[type=checkbox] { cursor: pointer; width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; }
+      .layer-item-text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+      .layer-item-label { font-size: 13px; }
+      .layer-item-description { font-size: 11px; color: #888; }
+      .layer-item .layer-status { font-size: 11px; color: #aaa; margin-top: 2px; }
+      .layer-item-links { display: flex; gap: 8px; margin-top: 3px; }
+      .layer-item-links a { font-size: 11px; color: #1a73e8; text-decoration: none; }
+      .layer-item-links a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="controls">
+      <button id="zoom-in" title="放大">+</button>
+      <button id="zoom-out" title="缩小">−</button>
+      <div class="divider"></div>
+
+      <div id="layers-btn-wrap">
+        <button id="layers-btn">图层 ▾</button>
+        <div id="layers-dropdown"></div>
+      </div>
+
+      <div class="divider"></div>
+      <label for="opacity-slider">透明度</label>
+      <input id="opacity-slider" type="range" min="0" max="1" step="0.01" value="1" />
+    </div>
+
+    <template id="layer-item-tpl">
+      <label class="layer-item">
+        <input type="checkbox" checked />
+        <div class="layer-item-text">
+          <div class="layer-item-label"></div>
+          <div class="layer-item-description"></div>
+          <span class="layer-status"></span>
+          <div class="layer-item-links">
+            <a class="link-more" target="_blank" rel="noopener">更多</a>
+            <a class="link-edit" target="_blank" rel="noopener">编辑</a>
+          </div>
+        </div>
+      </label>
+    </template>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "leaflet": "https://esm.sh/leaflet@1.9.4",
+          "@allmaps/leaflet": "https://esm.sh/@allmaps/leaflet@1.0.0-beta.53"
+        }
+      }
+    </script>
+    <script type="module">
+      import L from 'leaflet'
+      import { WarpedMapLayer } from '@allmaps/leaflet'
+
+      // ── Annotation list ──────────────────────────────────────────────
+      const ANNOTATIONS = {{ collections.maps | toAnnotations | dump | safe }}
+
+      // ── Map setup ────────────────────────────────────────────────────
+      const map = L.map('map', {
+        center: [23.354, 116.68],
+        zoom: 13,
+        zoomAnimationThreshold: 1,
+        zoomControl: false
+      })
+
+      document.getElementById('zoom-in').addEventListener('click', () => map.zoomIn())
+      document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut())
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">' +
+          'OpenStreetMap</a> 贡献者'
+      }).addTo(map)
+
+      // ── Load layers + build dropdown ─────────────────────────────────
+      const layers = []
+      const dropdown = document.getElementById('layers-dropdown')
+      const tpl = document.getElementById('layer-item-tpl')
+
+      for (const ann of ANNOTATIONS) {
+        const warpedLayer = new WarpedMapLayer().addTo(map)
+
+        const frag = tpl.content.cloneNode(true)
+        frag.querySelector('.layer-item-label').textContent = ann.label
+
+        const descEl = frag.querySelector('.layer-item-description')
+        if (ann.description) descEl.textContent = ann.description
+        else descEl.remove()
+
+        const statusEl = frag.querySelector('.layer-status')
+        statusEl.textContent = '加载中…'
+
+        const moreLink = frag.querySelector('.link-more')
+        if (ann.more_link) moreLink.href = ann.more_link
+        else moreLink.remove()
+
+        const editLink = frag.querySelector('.link-edit')
+        if (ann.edit_link) editLink.href = ann.edit_link
+        else editLink.remove()
+
+        if (!ann.more_link && !ann.edit_link) frag.querySelector('.layer-item-links').remove()
+
+        frag.querySelector('input[type=checkbox]').addEventListener('change', (e) => {
+          if (e.target.checked) warpedLayer.addTo(map)
+          else warpedLayer.remove()
+        })
+
+        dropdown.appendChild(frag)
+
+        warpedLayer.addGeoreferenceAnnotationByUrl(ann.url).then(() => {
+          statusEl.textContent = ''
+        })
+
+        layers.push({ layer: warpedLayer })
+      }
+
+      // ── Toggle dropdown ──────────────────────────────────────────────
+      const layersBtn = document.getElementById('layers-btn')
+      layersBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        dropdown.classList.toggle('open')
+      })
+      document.addEventListener('click', () => dropdown.classList.remove('open'))
+
+      // ── Opacity (applies to all visible layers) ──────────────────────
+      document.getElementById('opacity-slider').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value)
+        for (const item of layers) item.layer.setOpacity(val)
+      })
+    </script>
+  </body>
+</html>
