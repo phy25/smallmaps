@@ -26,6 +26,7 @@
         display: inline-flex; align-items: center; justify-content: center;
       }
       #controls button:hover { background: #f0f0f0; }
+      #controls button.active { background: #e8f0fe; color: #1a73e8; }
       #opacity-slider { min-width: 80px; max-width: 160px; cursor: pointer; }
 
       /* ── layers dropdown ── */
@@ -58,6 +59,9 @@
     <div id="controls">
       <button id="zoom-in" title="放大">+</button>
       <button id="zoom-out" title="缩小">−</button>
+      <div class="divider"></div>
+
+      <button id="satellite-btn" title="卫星图">卫星</button>
       <div class="divider"></div>
 
       <div id="layers-btn-wrap">
@@ -97,6 +101,8 @@
       import L from 'leaflet'
       import { WarpedMapLayer } from '@allmaps/leaflet'
 
+      const MAPBOX_TOKEN = '{{ site.mapboxToken }}'
+
       // ── Annotation list ──────────────────────────────────────────────
       const ANNOTATIONS = {{ collections.maps | toAnnotations | dump | safe }}
 
@@ -111,11 +117,46 @@
       document.getElementById('zoom-in').addEventListener('click', () => map.zoomIn())
       document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut())
 
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">' +
           'OpenStreetMap</a> 贡献者'
       }).addTo(map)
+
+      const satelliteLayer = L.tileLayer(
+        `https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.jpg70?access_token=${MAPBOX_TOKEN}`,
+        {
+          attribution:
+            '&copy; <a href="https://www.mapbox.com/">Mapbox</a> ' +
+            '&copy; <a href="https://www.maxar.com/">Maxar</a> ' +
+            '<a id="mapbox-improve-link" href="https://apps.mapbox.com/feedback/">改进卫星图</a>',
+          tileSize: 512,
+          zoomOffset: -1
+        }
+      )
+
+      function updateImproveLink() {
+        const el = document.getElementById('mapbox-improve-link')
+        if (!el) return
+        const { lng, lat } = map.getCenter()
+        const zoom = map.getZoom()
+        el.href = `https://apps.mapbox.com/feedback/#/${lng.toFixed(5)}/${lat.toFixed(5)}/${zoom}`
+      }
+      map.on('moveend zoomend', updateImproveLink)
+
+      const satelliteBtn = document.getElementById('satellite-btn')
+      satelliteBtn.addEventListener('click', () => {
+        const isActive = satelliteBtn.classList.toggle('active')
+        if (isActive) {
+          osmLayer.remove()
+          satelliteLayer.addTo(map)
+          satelliteLayer.bringToBack()
+        } else {
+          satelliteLayer.remove()
+          osmLayer.addTo(map)
+          osmLayer.bringToBack()
+        }
+      })
 
       // ── Load layers + build dropdown ─────────────────────────────────
       const layers = []
