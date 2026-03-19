@@ -19,17 +19,21 @@ class IiifInfo {
 
     const imageOutputDir = data.page.outputPath.replace(/\/info\.json$/, "");
 
+    const region = `0,0,${w},${h}`;
     for (const [tw, th] of [
       [w, h],
       [halfW, halfH],
     ]) {
-      await Image(imgPath, {
-        widths: [tw],
-        formats: ["jpeg"],
-        outputDir: path.join(imageOutputDir, "full", `${tw},${th}`, "0"),
-        filenameFormat: () => "default.jpg",
-        sharpJpegOptions: { quality: 85 },
-      });
+      const tileSize = `${tw},${th}`;
+      for (const regionDir of ["full", region]) {
+        await Image(imgPath, {
+          widths: [tw],
+          formats: ["jpeg"],
+          outputDir: path.join(imageOutputDir, regionDir, tileSize, "0"),
+          filenameFormat: () => "default.jpg",
+          sharpJpegOptions: { quality: 85 },
+        });
+      }
     }
 
     return JSON.stringify(
