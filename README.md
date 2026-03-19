@@ -2,7 +2,7 @@
 
 A static [IIIF](https://iiif.io/) image host and map viewer built with [Build Awesome (Eleventy)](https://www.11ty.dev/). Each map is a Markdown file with YAML frontmatter; the build pre-generates IIIF image tiles, manifests, and a [Leaflet](https://leafletjs.com/) + [Allmaps](https://allmaps.org/) viewer.
 
-Deployed at **[allmaps-st.phy.moe](https://allmaps-st.phy.moe)**.
+Deployed at **[smallmaps.phy.moe](https://smallmaps.phy.moe)**.
 
 Most of the code in this project was written with [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6).
 

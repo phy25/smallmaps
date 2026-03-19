@@ -1,3 +1,3 @@
 export default {
-  baseUrl: process.env.BASE_URL ?? "https://allmaps-st.phy.moe",
+  baseUrl: process.env.BASE_URL ?? "https://smallmaps.phy.moe",
 };
