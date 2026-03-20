@@ -13,7 +13,7 @@ export default function (eleventyConfig) {
 
   // Filter: reshape map objects to the ANNOTATIONS shape the viewer expects
   eleventyConfig.addFilter("toAnnotations", (maps) =>
-    maps.map((m) => ({
+    maps.filter((m) => m.annotation_json_url).map((m) => ({
       label: m.label?.zh ?? m.label?.en ?? m.label,
       description: m.description,
       url: m.annotation_json_url,
