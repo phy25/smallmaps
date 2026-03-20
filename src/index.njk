@@ -105,20 +105,28 @@
 
       // ── Map setup ────────────────────────────────────────────────────
       const map = L.map('map', {
-        center: [23.354, 116.68],
+        center: [23.354, 116.675],
         zoom: 14,
         zoomAnimationThreshold: 1,
         zoomControl: false
       })
 
+      map.attributionControl.setPrefix(false)
+
       document.getElementById('zoom-in').addEventListener('click', () => map.zoomIn())
       document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut())
 
-      const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">' +
-          'OpenStreetMap</a> 贡献者'
-      }).addTo(map)
+      const streetLayer = L.tileLayer(
+        `https://api.mapbox.com/styles/v1/phy25/cmmydsfib00an01s65iv28bft/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+        {
+          attribution:
+            '&copy; <a href="https://www.mapbox.com/">Mapbox</a> ' +
+            '&copy; <a href="https://www.openstreetmap.org/copyright">' +
+            'OpenStreetMap 贡献者</a> ' + 
+            '<a id="mapbox-improve-link" href="https://apps.mapbox.com/feedback/">改进底图</a>',
+          tileSize: 512,
+          zoomOffset: -1
+        }).addTo(map)
 
       const satelliteLayer = L.tileLayer(
         `https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.jpg70?access_token=${MAPBOX_TOKEN}`,
@@ -159,13 +167,13 @@
       satCheckbox.addEventListener('change', (e) => {
         satItem.setAttribute('aria-checked', String(e.target.checked))
         if (e.target.checked) {
-          osmLayer.remove()
+          streetLayer.remove()
           satelliteLayer.addTo(map)
           satelliteLayer.bringToBack()
         } else {
           satelliteLayer.remove()
-          osmLayer.addTo(map)
-          osmLayer.bringToBack()
+          streetLayer.addTo(map)
+          streetLayer.bringToBack()
         }
       })
       dropdown.appendChild(satFrag)
